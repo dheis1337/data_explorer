@@ -69,8 +69,8 @@ shinyServer(function(input, output, session) {
 
 
       df <- reactive_df()
-
-
+      
+      
       map_var <- reactive_df()[[input$map_variable]]
 
         if (is.factor(map_var)) {
@@ -101,7 +101,7 @@ shinyServer(function(input, output, session) {
           } else { 
             
               pal <- colorNumeric(
-                  palette = "Viridis",
+                  palette = "plasma",
                   domain = map_var
               
               )
@@ -112,7 +112,7 @@ shinyServer(function(input, output, session) {
 
         if (input$boundary == "zip") {
 
-
+          zip <- zip %>% filter(ZCTA5CE10 %in% input$zip)
 
           leafletProxy("mymap") %>%
             clearShapes() %>%
@@ -133,7 +133,7 @@ shinyServer(function(input, output, session) {
                        popup = paste("<h3>", 
                                      paste(df$prop_addr_num, df$prop_addr_pre,
                                            df$prop_addr_st_name, df$prop_addr_st_type,
-                                           ifelse(is.na(df$prop_addr_unit), NULL,
+                                           ifelse(is.na(df$prop_addr_unit), "",
                                                   df$prop_addr_unit)),
                                      df$prop_addr_city, df$prop_addr_zip, "</h3>",
                                      "<h4>", "Close Price:",  df$close_price, "<br>",
@@ -146,9 +146,10 @@ shinyServer(function(input, output, session) {
           
           
         } else if (input$boundary == "city") {
-          
+            
+          city <- city %>% filter(NAME10 %in% input$city)
         
-          leafletProxy("mymap") %>%
+          leafletProxy(data = df, "mymap") %>%
             clearShapes() %>%
             removeControl(layerId = "legend") %>%
             addLegend(position = "bottomright", pal = pal, values = map_var,
@@ -160,14 +161,14 @@ shinyServer(function(input, output, session) {
                            polygonOptions = drawPolygonOptions(shapeOptions = drawShapeOptions(fill = FALSE, weight = 4)),
                            rectangleOptions = drawRectangleOptions(shapeOptions = drawShapeOptions(fill = FALSE, weight = 4))) %>%
             addPolylines(data = city, weight = 1, label = city$NAME10, 
-                         labelOptions = labelOptions(noHide = TRUE), group = ~NAME10,
+                         group = ~NAME10,
                          color = "white") %>%
-            addCircles(data = df, lng = ~longitude, lat = ~latitude, color= ~pal(map_var),
+            addCircles(lng = ~longitude, lat = ~latitude, color= ~pal(map_var),
                        stroke = FALSE, fillOpacity = 2, radius = 7, group = ~prop_addr_city,
-                       popup = paste("<h3>", 
+                       popup = paste("<h3>",
                                      paste(df$prop_addr_num, df$prop_addr_pre,
                                            df$prop_addr_st_name, df$prop_addr_st_type,
-                                           ifelse(is.na(df$prop_addr_unit), NULL,
+                                           ifelse(is.na(df$prop_addr_unit), "",
                                                   df$prop_addr_unit)),
                                      df$prop_addr_city, df$prop_addr_zip, "</h3>",
                                      "<h4>", "Close Price:",  df$close_price, "<br>",
@@ -197,7 +198,7 @@ shinyServer(function(input, output, session) {
                        popup = paste("<h3>", 
                                      paste(df$prop_addr_num, df$prop_addr_pre,
                                            df$prop_addr_st_name, df$prop_addr_st_type,
-                                           ifelse(is.na(df$prop_addr_unit), NULL,
+                                           ifelse(is.na(df$prop_addr_unit), "",
                                                   df$prop_addr_unit)),
                                            df$prop_addr_city, df$prop_addr_zip, "</h3>",
                                     "<h4>", "Close Price:",  df$close_price, "<br>",
@@ -247,8 +248,9 @@ shinyServer(function(input, output, session) {
             
             if (input$boundary == "zip") {
               
-             df <- denv_explor %>% as.data.table() %>%
-                         filter(year_sold >= sold_year_min &
+             denv_explor %>% as.data.table() %>%
+                         filter(prop_addr_zip %in% input$zip &
+                         year_sold >= sold_year_min &
                          year_sold <= sold_year_max &
                          close_price >= close_price_min &
                          close_price <= close_price_max &
@@ -262,8 +264,12 @@ shinyServer(function(input, output, session) {
                          year_built <= year_built_max &
                          total_sqft >= prop_size_sqft_min &
                          total_sqft <= prop_size_sqft_max &
-                         prop_addr_zip %in% input$zip) %>%
-                         left_join(zip, by = c("prop_addr_zip" = "ZCTA5CE10"))
+                         property_type %in% prop_type_list)
+                         
+      
+            
+             
+             
              
              
             } else if (input$boundary == "city") {
@@ -283,9 +289,10 @@ shinyServer(function(input, output, session) {
                          year_built <= year_built_max &
                          total_sqft >= prop_size_sqft_min &
                          total_sqft <= prop_size_sqft_max &
-                         prop_addr_city %in% input$city) %>%
-                         left_join(city, by = c("prop_addr_city" = "NAME10"))
+                         prop_addr_city %in% input$city) 
+                         
               
+             
             } else {
               
               reactive_bbox$bbox <- unlist(input$mymap_draw_new_feature)[-c(1:4)] %>%
@@ -296,6 +303,8 @@ shinyServer(function(input, output, session) {
                 st_sfc() %>%
                 st_set_crs(4326) %>%
                 st_transform(26913)
+              
+
               
               denv_explor %>% slice(which(denv_explor %>% 
                                             st_intersects(reactive_bbox$bbox, 
@@ -342,10 +351,7 @@ shinyServer(function(input, output, session) {
      
 
      output$graph_1v <- renderPlot({
-       if (is.null(reactive_bbox$bbox)) {
-         NULL
-       } else {
-       
+      
          dat <- reactive_df()
          
          input_vars <- c(input$bar_color, input$bar_facet, input$density_color,
@@ -456,22 +462,18 @@ shinyServer(function(input, output, session) {
                
               }
             }
-         }
-     })
+         })
      
      
      reactive_maps <- reactiveValues(scatter_color = NULL)
      
      output$graph_2v <- renderPlot({
-         if (is.null(reactive_bbox$bbox)) {
-             NULL
-         } else {
+         
               
            input_vars <- c(input$scatter_color, input$scatter_size,
                            input$scatter_shape, input$scatter_facet,
                            input$line_color, input$line_facet)
            
-           print(input_vars)
            
            input_test <- sapply(input_vars, grepl, "Nothing")
            
@@ -479,12 +481,11 @@ shinyServer(function(input, output, session) {
                                   input$scatter_shape, input$scatter_facet,
                                   input$line_color, input$line_facet)
            
-           print(input_test)
+       
            
            not_null_vecs <- which(input_test != TRUE)
            
-           print(not_null_vecs)
-           
+    
            
            map_vars <- list(scatter_color = NULL,
                             scatter_size = NULL,
@@ -541,9 +542,7 @@ shinyServer(function(input, output, session) {
                    facet_wrap(as.formula(paste(map_vars$line_facet, "~ .")))
                  
              }
-         }
-    
-     })
+         })
      
      output$num_sold <- renderText({
        
@@ -564,7 +563,6 @@ shinyServer(function(input, output, session) {
      })
     
 })
-
 
 
 

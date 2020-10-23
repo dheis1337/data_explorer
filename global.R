@@ -15,7 +15,7 @@ library(shinythemes)
 # denv_explor <- fread("~/MyStuff/DataScience/data_explorer/denv_explore.csv",
 #                      stringsAsFactors = FALSE)
 
-denv_explor <- fread("C:/my_stuff/data_explorer/mls_props.csv", stringsAsFactors = FALSE,
+denv_explor <- fread("C:/MyStuff/DataScience/Projects/data_explorer/mls_props.csv", stringsAsFactors = FALSE,
                      na.strings = "") %>%
   separate(col = "proj_coords", into = c("x_proj", "y_proj"), sep = "\\|") %>%
   mutate(x_proj = as.numeric(x_proj), y_proj = as.numeric(y_proj)) %>%
@@ -37,7 +37,7 @@ non_zips <- c(80101, 80117, 80105, 80132, 80133, 80102, 80103, 80026, 80025, 801
 zips <- zips[!(zips %in% non_zips)]
 
 
-zip <- st_read("C:/my_stuff/data_explorer/Colorado_ZIP_Code_Tabulation_Areas_ZCTA.shp",
+zip <- st_read("C:/MyStuff/DataScience/Projects/data_explorer/Colorado_ZIP_Code_Tabulation_Areas_ZCTA.shp",
                stringsAsFactors = FALSE) %>%
   select("ZCTA5CE10", "geometry") %>%
   st_transform("+proj=longlat +datum=WGS84 +no_defs") %>%
@@ -63,7 +63,7 @@ cities <- cities[!(cities %in% non_cities)]
 
 
 
-city <- st_read("C:/my_stuff/data_explorer/Colorado_City_Boundaries.shp",
+city <- st_read("C:/MyStuff/DataScience/Projects/data_explorer/Colorado_City_Boundaries.shp",
         stringsAsFactors = FALSE) %>%
   select("NAME10", "geometry") %>%
   st_transform("+proj=longlat +datum=WGS84 +no_defs") %>%
